@@ -23,7 +23,11 @@ The designs were synthesized and routed across multiple technology nodes to anal
 * **Simulation (Cadence Xcelium):** Verified functional correctness via testbenches simulating extreme boundary conditions and negative number handling.
 
 ## Directory Structure
-* `src/` - VHDL source code (Adders, Comparators, Remainder Calculators, Top-Level Modulo modules)
-* `tb/` - VHDL Testbenches and Xcelium simulation waveforms
-* `synthesis/` - Cadence Genus reports (timing, area, power) for 45nm and 7nm runs
-* `layout/` - Cadence Innovus physical design screenshots and physical netlists
+* `mod5/`, `mod9/`, `mod14/`, `mod15/` - Dedicated directories for each modulo hardware architecture. Each contains:
+  * `VHDL code/` - Original RTL VHDL source files (`.vhd`).
+  * `*.sdc` - Synopsys Design Constraints.
+  * `*.v` - Synthesized gate-level Verilog netlist (from Cadence Genus).
+  * `*.sdf` - Standard Delay Format file for precise timing analysis.
+  * `tb.v` - Verilog testbench for post-synthesis simulation.
+* `Technical_Report_VLSI_2.pdf` - Full project documentation, logic schematics, and area/power/timing reports.
+* `Project_Presentation.pptx` - Summary presentation slide deck.
