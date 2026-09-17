@@ -1,0 +1,150 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity mod15 is 
+    generic (n: integer := 32); 
+    port(
+        A, B: in std_logic_vector(n-1 downto 0);
+        remainder: out std_logic_vector(3 downto 0)  -- [4-0] signed
+    );
+end mod15;
+
+architecture dataflow of mod15 is
+
+    signal S: std_logic_vector(n-1 downto 0);
+    signal padded_32 : std_logic_vector(31 downto 0);
+
+    -- Correct array type declaration
+    type slv4_array is array (natural range <>) of std_logic_vector(3 downto 0);
+    signal remainders : slv4_array(0 to 7);
+    signal sum_remain : std_logic_vector(6 downto 0);
+    type slv7_array is array (natural range <>) of std_logic_vector(6 downto 0);
+    -- Adder tree signals
+    signal sum_stage1 : slv7_array(0 to 3);
+    signal sum_stage2 : slv7_array(0 to 1);
+    signal sum_final : std_logic_vector(6 downto 0);
+    
+    -- decide if i want to calculate as if its a negative or positive number
+    signal negative:std_logic;
+    signal s_first:std_logic_vector(3 downto 0);
+    -- Component declarations
+    component adder_n is
+        generic (n: integer := 4);
+        port(
+            a, b: in std_logic_vector(n-1 downto 0);
+            cin: in std_logic;
+            sum: out std_logic_vector(n-1 downto 0);
+            cout: out std_logic
+        );
+    end component;
+  
+    component comparator_of_15 is
+        generic (n: integer := 4); 
+        port(
+            S: in std_logic_vector(n-1 downto 0);
+            negative: in std_logic;
+            above: out std_logic; 
+            below: out std_logic
+        );
+    end component;
+
+    component remainder_calculator_15 is generic (n: integer := 4); 
+    port (
+        data_in      : in  std_logic_vector(n-1 downto 0);
+        negative_first: in std_logic; 
+        remainder    : out std_logic_vector(n-1 downto 0)
+    );
+    end component;
+
+    begin
+   
+    adder : adder_n 
+        generic map(n) 
+        port map (A, B, '0', S, open);
+    
+    padded_32 <= (31 downto n => S(n-1)) & S;
+    
+    negative <= padded_32(31);
+    
+    s_first <= padded_32(31 downto 28);
+
+    remainder_c : remainder_calculator_15
+    generic map(4)
+    port map(s_first,negative,
+    remainders(7));
+
+
+
+    generate_label:
+    for i in 0 to 6 generate
+    
+    
+    signal s_in: std_logic_vector(3 downto 0);
+    begin
+
+    s_in <= padded_32(3+i*4 downto i*4);
+
+    remainder_c : remainder_calculator_15
+    generic map(4)
+    port map(s_in,'0',
+    remainders(i));    
+    end generate;
+
+
+    -- Adder tree to sum all remainders
+    -- Stage 1: Add pairs of remainders
+
+    gen_stage1: for i in 0 to 3 generate
+
+    signal a_padded, b_padded : std_logic_vector(6 downto 0);
+begin
+    a_padded <= "000" & remainders(i*2);
+    b_padded <= "000" & remainders(i*2+1);
+
+        adder_st1: adder_n
+            generic map(7)
+            port map(
+                a => a_padded,
+                b => b_padded,
+                cin => '0',
+                sum => sum_stage1(i),
+                cout => open
+            );
+    end generate gen_stage1;
+    
+    -- Stage 2: Add results from stage 1
+    gen_stage2: for i in 0 to 1 generate
+        adder_st2: adder_n
+            generic map(7)
+            port map(
+                a => sum_stage1(i*2),
+                b => sum_stage1(i*2+1),
+                cin => '0',
+                sum => sum_stage2(i),
+                cout => open
+            );
+    end generate gen_stage2;
+    
+    -- Final adder
+    adder_final: adder_n
+        generic map(7)
+        port map(
+            a => sum_stage2(0),
+            b => sum_stage2(1),
+            cin => '0',
+            sum => sum_final,
+            cout => open
+        );
+
+    remainder_sum : remainder_calculator_15
+    generic map(7)
+    port map(sum_final,'0',
+    sum_remain);
+
+    remainder <= sum_remain(3 downto 0);
+
+
+end dataflow;
+
+
